@@ -19,7 +19,7 @@
 
 #include <tcl.h>
 #include "TCL_Fixup.h"
-#include <valgrind/memcheck.h>
+// #include <valgrind/memcheck.h>
 
 #include "util.h"
 #include "Channel.h"
@@ -234,9 +234,11 @@ ChannelClient::receive( char *buffer, int length, time_t time_limit ) {
          * running and all messaging would fail since we can not detect process
          * liveness after the program name change.
          */
+/*
         if ( RUNNING_ON_VALGRIND == 0 ) {
             if ( is_alive(service) == false ) return MESSAGE_EXCEPTION;
         }
+*/
         nanosleep( &delay, NULL );
     } while ( ++elapsed < time_limit );
 

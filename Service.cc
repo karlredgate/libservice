@@ -87,7 +87,7 @@ PutsSyslog_cmd( ClientData data, Tcl_Interp *interp,
 
     char *message = Tcl_GetStringFromObj( objv[1], NULL );
 
-    syslog( LOG_NOTICE, message );
+    syslog( LOG_NOTICE, "%s", message );
     Tcl_ResetResult( interp );
     return TCL_OK;
 }
@@ -106,7 +106,7 @@ SyslogWarn_cmd( ClientData data, Tcl_Interp *interp,
 
     char *message = Tcl_GetStringFromObj( objv[1], NULL );
 
-    syslog( LOG_WARNING, message );
+    syslog( LOG_WARNING, "%s", message );
     Tcl_ResetResult( interp );
     return TCL_OK;
 }
@@ -125,7 +125,7 @@ SyslogErr_cmd( ClientData data, Tcl_Interp *interp,
 
     char *message = Tcl_GetStringFromObj( objv[1], NULL );
 
-    syslog( LOG_ERR, message );
+    syslog( LOG_ERR, "%s", message );
     Tcl_ResetResult( interp );
     return TCL_OK;
 }
