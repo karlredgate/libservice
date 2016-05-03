@@ -53,7 +53,7 @@ Xen::StorePath* Xen::Store::readdir( char *key ) {
         exit( 1 );
     }
     message.type = XS_DIRECTORY;
-    message.req_id = (uint32_t)key;
+    message.req_id = (intptr_t)key;
     message.len = strlen(key) + 1;
     if ( ::write(fd, &message, sizeof(message)) == -1 ) {
         perror("xenbus write" );
@@ -95,7 +95,7 @@ char* Xen::Store::read( char *key ) {
         exit( 1 );
     }
     message.type = XS_READ;
-    message.req_id = (uint32_t)key;
+    message.req_id = (intptr_t)key;
     message.len = strlen(key) + 1;
     if ( ::write(fd, &message, sizeof(message)) == -1 ) {
         strlcpy( error_string, "xenbus write", sizeof(error_string) );
@@ -153,7 +153,7 @@ bool Xen::Store::write( char *key, char *value ) {
     len += strlcpy(p, value, 2048 - len);
 
     message.hdr.type = XS_WRITE;
-    message.hdr.req_id = (uint32_t)key;
+    message.hdr.req_id = (intptr_t)key;
     message.hdr.len = len;
 
     if ( ::write(fd, &message, sizeof(message)) == -1 ) {
@@ -199,7 +199,7 @@ bool Xen::Store::mkdir( char *path ) {
     memset( &message, 0, sizeof(message) );
 
     message.type = XS_MKDIR;
-    message.req_id = (uint32_t)path;
+    message.req_id = (intptr_t)path;
     message.len = strlen(path) + 1;
 
     if ( ::write(fd, &message, sizeof(message)) == -1 ) {
@@ -249,7 +249,7 @@ bool Xen::Store::remove( char *path ) {
     memset( &message, 0, sizeof(message) );
 
     message.type = XS_RM;
-    message.req_id = (uint32_t)path;
+    message.req_id = (intptr_t)path;
     message.len = strlen(path) + 1;
 
     if ( ::write(fd, &message, sizeof(message)) == -1 ) {
