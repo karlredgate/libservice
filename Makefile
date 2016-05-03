@@ -17,8 +17,11 @@ default: build install
 kit: build test install
 build: $(UTILTARGET) all test
 
-all: $(SONAME)
+all: dependencies $(SONAME)
 	# $(MAKE) -C src
+
+dependencies:
+	rpm --query xen-devel
 
 OBJS = \
 	BIOS.o \
