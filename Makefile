@@ -1,5 +1,6 @@
 
-INCLUDES = -I../xen/vendor/dist/install/usr/include
+INSTALL := install
+
 CFLAGS += -fpic -g $(INCLUDES)
 CXXFLAGS += -fpic -g $(INCLUDES)
 
