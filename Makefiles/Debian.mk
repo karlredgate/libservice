@@ -30,7 +30,12 @@ distro_build:
 	@echo "No Debian specific build rules"
 
 validate-build:
-	: defined for each package
+	: ssh 192.168.16.104 rm -rf diagnostics
+	: ssh 192.168.16.104 mkdir diagnostics
+	: scp -r . 192.168.16.104:diagnostics
+	: ssh 192.168.16.104 '( cd diagnostics ; make )'
+	: ssh 192.168.16.104 '( sudo diagnostics/examples/install-deb testing )'
+	: ssh 192.168.16.104 sudo http_proxy=http://192.168.16.100:3128/ call-home
 
 distro_test:
 	@echo "No tests for Debian distros"

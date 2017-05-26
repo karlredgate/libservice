@@ -1,13 +1,14 @@
 
 PWD := $(shell pwd)
 
+# This one needs work
+
 distro_dependencies:
 	@echo Check distro dependencies
 	: rpm --quiet --query git
 	: rpm --quiet --query rpm-build
 
 distro_package:
-	echo How to make a FreeBSD package
 	: rm -rf rpm
 	: mkdir -p rpm/BUILD rpm/RPMS rpm/BUILDROOT
 	: rpmbuild --quiet -bb --buildroot=$(PWD)/rpm/BUILDROOT $(PACKAGE).spec
