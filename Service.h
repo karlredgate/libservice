@@ -18,6 +18,7 @@
  */
 class Service : public Thread {
 private:
+	// this could potentially be completley internal
     Tcl_Interp *interp;
     const char *service_name;
     char logfilename[80];
@@ -27,7 +28,7 @@ private:
 public:
     Service( const char * );
     virtual ~Service();
-    bool initialize( int, char **, Tcl_AppInitProc * );
+    bool initialize( int, char ** );
     virtual void run();
     const char *name() const { return service_name; }
     void set_facility( int );
@@ -43,7 +44,4 @@ public:
 
 #endif
 
-/*
- * vim:autoindent
- * vim:expandtab
- */
+/* vim: set autoindent expandtab sw=4 : */

@@ -30,6 +30,7 @@
 
 #include "util.h"
 #include "Service.h"
+#include "AppInit.h"
 
 /**
  */
@@ -142,14 +143,18 @@ SyslogErr_cmd( ClientData data, Tcl_Interp *interp,
  * This interpreter acts as a remote command interpreter for other services that
  * need to call into this service.
  */
-static Tcl_Interp* create_tcl_interp( int argc, char **argv, Tcl_AppInitProc *appInit ) {
+static Tcl_Interp* create_tcl_interp( int argc, char **argv ) {
     Tcl_Interp *interp;
     Tcl_FindExecutable( argv[0] );
-    interp = Thread::global_interp();
+
+    // interp = Thread::global_interp();
+    interp = Tcl_CreateInterp();
+
     if ( interp == NULL ) {
         syslog( LOG_ERR, "failed to create interpreter" );
         exit( 1 );
     }   
+
     char *args = Tcl_Merge(argc-1, argv+1);
     Tcl_DString argString;
     Tcl_ExternalToUtfDString(NULL, args, -1, &argString);
@@ -179,7 +184,11 @@ static Tcl_Interp* create_tcl_interp( int argc, char **argv, Tcl_AppInitProc *ap
     if ( Channel_Initialize(interp) == false ) {
         syslog( LOG_ERR, "Channel_Initialize failed" );
     }
-    appInit( interp );
+
+    if ( Tcl_CallAppInitChain(interp) == false ) {
+	    // exit
+    }
+
     return interp;
 }
 
@@ -192,7 +201,7 @@ static Tcl_Interp* create_tcl_interp( int argc, char **argv, Tcl_AppInitProc *ap
  * I may want to read the systems UUID for all applications/services.
  */
 bool
-Service::initialize( int argc, char **argv, Tcl_AppInitProc *appInit ) {
+Service::initialize( int argc, char **argv ) {
     pid_t my_pid = getpid();
     char buffer[1024];
 
@@ -265,7 +274,7 @@ Service::initialize( int argc, char **argv, Tcl_AppInitProc *appInit ) {
      * Create the TCL interpreter that manages this service and read the
      * service configuration script.
      */
-    interp = create_tcl_interp( argc, argv, appInit );
+    interp = create_tcl_interp( argc, argv );
     sprintf( buffer, "/etc/%s/%s.conf", service_name, service_name );
     if ( access(buffer, R_OK) == 0 ) {
         if ( Tcl_EvalFile(interp, buffer) == TCL_ERROR ) {
