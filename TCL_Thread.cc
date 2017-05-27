@@ -35,9 +35,6 @@
 #include "PlatformThread.h"
 #include "AppInit.h"
 
-namespace { Tcl_Interp *interpreter = NULL; }
-Tcl_Interp *Thread::global_interp() { return interpreter; }
-
 /**
  */
 class RegisterThreadWithTcl : public ThreadCallback {

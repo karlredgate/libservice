@@ -64,7 +64,6 @@ public:
     const char *status;
     Thread( const char * );
     virtual ~Thread() {} // TODO clean up name
-    static Tcl_Interp *global_interp();
     void running() { status = "running"; }
     virtual void run() = 0;
     virtual bool start();
@@ -73,7 +72,6 @@ public:
     pid_t getpid() { return pid; }
     const char *thread_name() const { return _thread_name; }
     void thread_name( const char * );
-    int TclCommand(ClientData, Tcl_Interp *, int, Tcl_Obj * CONST *);
 };
 
 #endif
