@@ -21,7 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/** \file DarwinThread.cc
+/** \file FreeBSDThread.cc
  * \brief 
  */
 
