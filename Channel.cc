@@ -1,7 +1,36 @@
 
+/*
+ * Copyright (c) 2012 Karl N. Redgate
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included
+ * in all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+ * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 /** \file Channel.cc
  * \brief 
  *
+ * The problem with SYSV message queues for bidirectional messages, is that
+ * if the message is read it is deleted.  If the process reading the message
+ * fails in some manner, then the message is not processed and the sender
+ * does not get a response and requires mitigation.
+ *
+ * Consider new method where the message is read and consumed as separate
+ * steps.  Perhaps a message can be peeked with SYS MQ.
  */
 
 #include <sys/stat.h>
@@ -17,11 +46,7 @@
 #include <syslog.h>
 #include <glob.h>
 
-#include <tcl.h>
-#include "TCL_Fixup.h"
-// #include <valgrind/memcheck.h>
-
-#include "util.h"
+#include "string_util.h"
 #include "Channel.h"
 #include "Service.h"
 
@@ -138,7 +163,7 @@ Channel::send( long dst, int result, char *message ) {
         syslog( LOG_WARNING, "message body truncated" );
         bytes = sizeof(m.body) - 1;
     }
-    if ( msgsnd(q, &m, bytes + 1 + 8, flags) < 0 ) {
+    if ( msgsnd(q, &m, bytes + sizeof(char) + sizeof(long) + sizeof(long), flags) < 0 ) {
         syslog( LOG_ERR, "failed to msgsnd" );
     }
 }
@@ -190,7 +215,7 @@ ChannelClient::send( char *message ) {
         syslog( LOG_WARNING, "message body truncated" );
         bytes = sizeof(m.body) - 1;
     }
-    if ( msgsnd(q, &m, bytes + 1 + 8, flags) < 0 ) {
+    if ( msgsnd(q, &m, bytes + sizeof(char) + sizeof(long) + sizeof(long), flags) < 0 ) {
         syslog( LOG_ERR, "failed to msgsnd" );
     }
 }
@@ -228,159 +253,22 @@ ChannelClient::receive( char *buffer, int length, time_t time_limit ) {
             return request.error;
         }
 
+#if 0 // where is valgrind on OSX
         /**
          * We only want this error correction when we are not running under
          * valgrind, since valgrind changes the name of the program that is
          * running and all messaging would fail since we can not detect process
          * liveness after the program name change.
          */
-/*
         if ( RUNNING_ON_VALGRIND == 0 ) {
             if ( is_alive(service) == false ) return MESSAGE_EXCEPTION;
         }
-*/
+#endif
         nanosleep( &delay, NULL );
     } while ( ++elapsed < time_limit );
 
     syslog( LOG_ERR, "ERROR channel recv timed out" );
     return MESSAGE_EXCEPTION;
 }
-
-/**
- */
-static int
-Channel_obj( ClientData data, Tcl_Interp *interp,
-             int objc, Tcl_Obj * CONST *objv )
-{
-    ChannelClient *channel = (ChannelClient *)data;
 
-    if ( objc == 1 ) {
-        Tcl_SetObjResult( interp, Tcl_NewLongObj((long)(channel)) );
-        return TCL_OK;
-    }
-
-    char *command = Tcl_GetStringFromObj( objv[1], NULL );
-    if ( Tcl_StringMatch(command, "type") ) {
-        Svc_SetResult( interp, "Channel", TCL_STATIC );
-        return TCL_OK;
-    }
-
-    if ( Tcl_StringMatch(command, "send") ) {
-        if ( objc != 3 ) {
-            Tcl_ResetResult( interp );
-            Tcl_WrongNumArgs( interp, 2, objv, "request" );
-            return TCL_ERROR;
-        }
-        char *request = Tcl_GetStringFromObj( objv[2], NULL );
-        channel->send( request );
-        Tcl_ResetResult( interp );
-        return TCL_OK;
-    }
-
-    if ( Tcl_StringMatch(command, "receive") ) {
-        if ( objc != 2 ) {
-            Tcl_ResetResult( interp );
-            Tcl_WrongNumArgs( interp, 2, objv, "" );
-            return TCL_ERROR;
-        }
-        char buffer[1024];
-        int result = channel->receive( buffer, sizeof(buffer) );
-        Tcl_SetObjResult( interp, Tcl_NewStringObj(buffer, -1) );
-        return result;
-    }
-
-    if ( Tcl_StringMatch(command, "ask") ) {
-        if ( objc != 3 ) {
-            Tcl_ResetResult( interp );
-            Tcl_WrongNumArgs( interp, 2, objv, "request" );
-            return TCL_ERROR;
-        }
-        char *request = Tcl_GetStringFromObj( objv[2], NULL );
-        channel->send( request );
-        char buffer[1024];
-        int result = channel->receive( buffer, sizeof(buffer) );
-        Tcl_SetObjResult( interp, Tcl_NewStringObj(buffer, -1) );
-        return result;
-    }
-
-    if ( Tcl_StringMatch(command, "tell") ) {
-        if ( objc != 3 ) {
-            Tcl_ResetResult( interp );
-            Tcl_WrongNumArgs( interp, 2, objv, "request" );
-            return TCL_ERROR;
-        }
-        char *request = Tcl_GetStringFromObj( objv[2], NULL );
-        if ( fork() != 0 ) {
-            Tcl_ResetResult( interp );
-            return TCL_OK;
-        }
-        setsid();
-        openlog( "(background:channel)", LOG_PERROR, LOG_USER );
-        syslog( LOG_NOTICE, "send '%s'", request );
-        channel->send( request );
-        char buffer[1024];
-        int result = channel->receive( buffer, sizeof(buffer), 60 );
-        if ( result != TCL_OK ) {
-            syslog( LOG_ERR, "channel failed" );
-        }
-        _exit( 0 );
-    }
-
-    Svc_SetResult( interp, "Unknown command for Channel object", TCL_STATIC );
-    return TCL_ERROR;
-}
-
-/**
- */
-static void
-Channel_delete( ClientData data ) {
-    ChannelClient *channel = (ChannelClient *)data;
-    delete channel;
-}
-
-/**
- * Gotta fix this ...
- */
-static int
-Channel_cmd( ClientData data, Tcl_Interp *interp,
-             int objc, Tcl_Obj * CONST *objv )
-{
-    if ( objc != 2 ) {
-        Tcl_ResetResult( interp );
-        Tcl_WrongNumArgs( interp, 1, objv, "service" );
-        return TCL_ERROR;
-    }
-
-    char *name = Tcl_GetStringFromObj( objv[1], NULL );
-    // Should check if the service is really there
-    ChannelClient *object = new ChannelClient( name );
-    Tcl_CreateObjCommand( interp, name, Channel_obj, (ClientData)object, Channel_delete );
-    Svc_SetResult( interp, name, TCL_VOLATILE );
-    return TCL_OK;
-}
-
-/**
- */
-bool Channel_Initialize( Tcl_Interp *interp ) {
-    Tcl_Command command;
-
-    Tcl_Namespace *ns = Tcl_CreateNamespace(interp, "Channel", (ClientData)0, NULL);
-    if ( ns == NULL )  return false;
-
-    if ( Tcl_LinkVar(interp, "Channel::debug", (char *)&debug, TCL_LINK_INT) != TCL_OK ) {
-        syslog( LOG_ERR, "failed to link Channel::debug" );
-        exit( 1 );
-    }
-
-    command = Tcl_CreateObjCommand(interp, "Channel", Channel_cmd, (ClientData)0, NULL);
-    if ( command == NULL ) {
-        return false;
-    }
-
-    return true;
-}
-
-/*
- * vim:autoindent
- * vim:expandtab
- */
+/* vim: set autoindent expandtab sw=4 : */
