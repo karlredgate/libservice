@@ -1,5 +1,5 @@
 
-/** \file BIOS.cc
+/** \file SMBIOS.cc
  * \brief 
  */
 
@@ -19,7 +19,7 @@
 #include <tcl.h>
 #include "TCL_Fixup.h"
 
-#include "BIOS.h"
+#include "SMBIOS.h"
 
 namespace {
     typedef SMBIOS::Structure *(*StructureFactory)( void * );
