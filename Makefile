@@ -31,6 +31,8 @@ OBJS += SMBIOS.o
 OBJS += xuid.o
 OBJS += traps.o
 OBJS += syslog_logger.o
+OBJS += Allocator.o
+OBJS += TCL_Allocator.o
 
 default: all test
 

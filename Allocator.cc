@@ -66,6 +66,11 @@ public:
 
     static void* operator new (size_t size); 
     static void operator delete (void *p);
+
+    size_t get_size() { return size; }
+    int get_count() { return count; }
+    uint32_t available_slots();
+    MemPool *next_pool() { return next; }
 };
 
 /**
@@ -74,7 +79,7 @@ void *
 MemPool::operator new( size_t size ) {
     void *address = mmap( 0, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0 );
     if ( address == MAP_FAILED ) {
-        fprintf( stderr, "new operator failed to allocate %d bytes\n", size );
+        fprintf( stderr, "new operator failed to allocate %ld bytes\n", size );
         print_stack();
         throw std::bad_alloc();
     }
@@ -88,6 +93,30 @@ MemPool::operator delete( void *object ) {
     munmap( object, sizeof(MemPool) );
 }
 
+static const uint32_t m1  = 0x55555555;
+static const uint32_t m2  = 0x33333333;
+static const uint32_t m4  = 0x0F0F0F0F;
+static const uint32_t m8  = 0x00FF00FF;
+static const uint32_t m16 = 0x0000FFFF;
+
+/**
+ */
+uint32_t
+MemPool::available_slots() {
+    uint32_t sum = 0;
+    for ( int word = 0 ; word < maps ; word++ ) {
+        uint32_t hw = map[word];
+        hw -= (hw >> 1 ) & m1;
+        hw = (hw & m2) + ((hw >> 2) & m2);
+        hw = (hw + (hw >> 4)) & m4;
+        hw += hw >> 8;
+        hw += hw >> 16;
+        hw &= 0x7f;
+        sum += hw;
+    }
+    return sum;
+}
+
 /**
  */
 void
@@ -95,11 +124,11 @@ MemPool::initialize( size_t object_size ) {
     size = object_size;
     size_t zone = size * count;
 
-    fprintf( stderr, "Allocate %d KB memory region for %d byte objects\n", zone/1024, size );
+    fprintf( stderr, "Allocate %lu KB memory region for %lu byte objects\n", zone/1024, size );
     start = (uint8_t *)mmap( 0, zone, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0 );
 
     if ( start == MAP_FAILED ) {
-        fprintf( stderr, "MemPool failed to allocate memory region for %d byte objects\n", size );
+        fprintf( stderr, "MemPool failed to allocate memory region for %lu byte objects\n", size );
         print_stack();
         throw std::bad_alloc();
     }
@@ -110,12 +139,6 @@ MemPool::initialize( size_t object_size ) {
 
     next = new MemPool;
 }
-
-static const uint32_t m1  = 0x55555555;
-static const uint32_t m2  = 0x33333333;
-static const uint32_t m4  = 0x0F0F0F0F;
-static const uint32_t m8  = 0x00FF00FF;
-static const uint32_t m16 = 0x0000FFFF;
 
 /**
  */
@@ -175,7 +198,7 @@ MemPool::allocate( size_t object_size ) {
             }
 
             int entry = ((word * 32) + bit);
-            fprintf( stderr, "allocate entry %d from %d size table\n", entry, size );
+            fprintf( stderr, "allocate entry %d from %lu size table\n", entry, size );
             void *address = start + (entry * size);
 
             map[word] &= ~mask;
@@ -209,11 +232,11 @@ MemPool::free( void *object ) {
 
     if ( map[word] & mask ) {
         fprintf( stderr, "MemPool: map[%d] is 0x%08x\n", word, map[word] );
-        fprintf( stderr, "MemPool: object 0x%08x already freed\n", object );
+        fprintf( stderr, "MemPool: object 0x%p already freed\n", object );
         throw double_free();
     }
 
-    fprintf( stderr, "free entry %d from %d size table\n", entry, size );
+    fprintf( stderr, "free entry %d from %lu size table\n", entry, size );
     map[word] |= mask;
 }
 
@@ -226,7 +249,7 @@ static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  */
-void* operator new (size_t size) {
+void* operator new (size_t size) throw(std::bad_alloc) {
     pthread_mutex_lock( &mutex );
     void *address = heap.allocate( size );
     pthread_mutex_unlock( &mutex );
@@ -235,7 +258,7 @@ void* operator new (size_t size) {
 
 /**
  */
-void operator delete ( void *address ) {
+void operator delete ( void *address ) throw() {
     pthread_mutex_lock( &mutex );
     heap.free( address );
     pthread_mutex_unlock( &mutex );
@@ -278,34 +301,16 @@ usage_cmd( ClientData data, Tcl_Interp *interp,
 
 /**
  */
-bool
-Allocator::Initialize( Tcl_Interp *interp ) {
-    Tcl_Command command;
+void
+Allocator::inject( Allocator::Injector *injector ) {
+    Allocator::Injector &f = *injector;
+    MemPool *pool = &heap;
 
-    Tcl_Namespace *ns = Tcl_CreateNamespace(interp, "Allocator", (ClientData)0, NULL);
-    if ( ns == NULL ) {
-        return false;
+    while ( pool != NULL ) {
+        if ( pool->get_size() == 0 ) return;
+        f( pool->get_size(), pool->get_count(), pool-> available_slots() );
+        pool = pool->next_pool();
     }
-
-    if ( Tcl_LinkVar(interp, "Allocator::debug", (char *)&debug, TCL_LINK_INT) != TCL_OK ) {
-        syslog( LOG_ERR, "failed to link Allocator::debug" );
-        return false;
-    }
-
-    command = Tcl_CreateObjCommand(interp, "Allocator::stats", stats_cmd, (ClientData)0, NULL);
-    if ( command == NULL ) {
-        return false;
-    }
-
-    command = Tcl_CreateObjCommand(interp, "Allocator::usage", usage_cmd, (ClientData)0, NULL);
-    if ( command == NULL ) {
-        return false;
-    }
-
-    return true;
 }
 
-/*
- * vim:autoindent
- * vim:expandtab
- */
+/* vim: set autoindent expandtab sw=4 : */
