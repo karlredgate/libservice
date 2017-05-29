@@ -107,6 +107,8 @@ usage_cmd( ClientData data, Tcl_Interp *interp,
     Allocator::inject( injector );
 
     Tcl_SetObjResult( interp, injector->get_result() );
+
+    delete injector;
     return TCL_OK;
 }
 
