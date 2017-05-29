@@ -76,7 +76,7 @@ public:
 /**
  */
 void *
-MemPool::operator new( size_t size ) {
+MemPool::operator new ( size_t size ) {
     void *address = mmap( 0, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0 );
     if ( address == MAP_FAILED ) {
         fprintf( stderr, "new operator failed to allocate %ld bytes\n", size );
@@ -89,7 +89,7 @@ MemPool::operator new( size_t size ) {
 /**
  */
 void
-MemPool::operator delete( void *object ) {
+MemPool::operator delete ( void *object ) {
     munmap( object, sizeof(MemPool) );
 }
 
@@ -137,6 +137,7 @@ MemPool::initialize( size_t object_size ) {
         map[i] = 0xFFFFFFFF;
     }
 
+    fprintf( stderr, "Creating new mempool\n" );
     next = new MemPool;
 }
 
