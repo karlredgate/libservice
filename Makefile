@@ -1,47 +1,65 @@
 
-INSTALL := install
+PACKAGE = libservice
+PWD := $(shell pwd)
+DEPENDENCIES = tcl
+
+MAJOR_VERSION=1
+MINOR_VERSION=3
+REVISION=42284
+
+LIBRARY_NAME = libservice
+
+OBJS =
+OBJS += string_util.o
+OBJS += tcl_util.o
+OBJS += StringList.o
+OBJS += UUID.o
+OBJS += Channel.o
+OBJS += TCL_Channel.o
+OBJS += AppInit.o
+OBJS += TCL_Thread.o
+OBJS += Thread.o
+OBJS += TCL_Thread.o
+OBJS += Service.o
+# OBJS += Hypercall.o
+# OBJS += Xen.o
+# OBJS += XenStore.o
+# OBJS += Kernel.o
+OBJS += SMBIOS.o
+# OBJS += util.o
+OBJS += traps.o
+OBJS += syslog_logger.o
+
+default: all test
+
+OS := $(shell uname -s)
+include Makefiles/$(OS).mk
+# For package platform specific includes
+INCLUDES += -I$(OS)/include
+INCLUDES += -I.
 
 CFLAGS += -fpic -g $(INCLUDES)
 CXXFLAGS += -fpic -g $(INCLUDES)
 
-MAJOR_VERSION=1
-MINOR_VERSION=0
-REVISION=42284
 
-LINKNAME=libservice.so
-SONAME=$(LINKNAME).$(MAJOR_VERSION)
-REALNAME=$(SONAME).$(MINOR_VERSION).$(REVISION)
-
-RPM_DIR=$(KIT_RPM_DIR)/dom0/base
-
-default: build install
 kit: build test install
 build: $(UTILTARGET) all test
 
-all: dependencies $(SONAME)
+# all: dependencies $(SONAME)
+all: dependencies sonar
 	# $(MAKE) -C src
 
-dependencies:
-	rpm --query xen-devel
+dependencies: distro_dependencies
+	@echo "No generic dependencies"
 
-OBJS = \
-	BIOS.o \
-	Service.o \
-	Channel.o \
-	StringList.o \
-	Thread.o \
-	Hypercall.o \
-	Xen.o \
-	XenStore.o \
-	Kernel.o \
-	UUID.o \
-	util.o
+sonar: sonar.o $(LIBRARY_TARGET)
+	$(CXX) -o $@ $^ -lstdc++ $(LDFLAGS) -ltcl
 
-CLEANS += $(SONAME)
-$(SONAME): $(OBJS)
-	$(CC) -shared -Wl,-soname,$(SONAME) -o $@ $^ -lc -ltcl
-	rm -f $(LINKNAME)
-	ln -s $(SONAME) $(LINKNAME)
+CLEANS += $(LIBRARY_TARGET) $(LINKNAME)
+$(LIBRARY_TARGET): $(OBJS)
+	$(CXX) $(SHARED_LIB_FLAGS) -o $@ $^ -lc $(LDFLAGS) -ltcl
+	: rm -f $(LINKNAME)
+	: ln -s $(LIBRARY_TARGET) $(LINKNAME)
 
 Hypercall.o: Hypercall.cc Hypercall.h
 	$(CXX) $(CXXFLAGS) -c $<
@@ -53,7 +71,7 @@ XenStore.o: XenStore.cc XenStore.h
 	$(CXX) $(CXXFLAGS) -c $<
 
 Kernel.o :: Kernel.h
-BIOS.o :: BIOS.h
+smbios.o :: smbios.h
 Service.o :: Service.h Thread.h
 Channel.o :: Channel.h Service.h Thread.h
 StringList.o :: StringList.h

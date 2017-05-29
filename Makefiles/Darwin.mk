@@ -6,6 +6,9 @@ ifeq ($(RELEASE),10.11.6)
 CODENAME := ElCapitan
 endif
 
+# Mac Ports
+INCLUDES += -I/opt/local/include
+
 LINKNAME=$(LIBRARY_NAME).dylib
 REAL_NAME=$(LIBRARY_NAME).$(MAJOR_VERSION).$(MINOR_VERSION).dylib
 
@@ -13,6 +16,8 @@ LIBRARY_TARGET=$(LINKNAME)
 
 SHARED_LIB_FLAGS= -dynamiclib
 # Mac OSX package
+
+OBJS += Darwin/DarwinThread.o
 
 distro_dependencies: release_dependencies
 	@echo Check distro dependencies
