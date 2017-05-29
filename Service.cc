@@ -181,10 +181,6 @@ static Tcl_Interp* create_tcl_interp( int argc, char **argv ) {
     Tcl_CreateObjCommand(interp, "ERROR", SyslogErr_cmd, (ClientData)0, NULL);
     Tcl_CreateObjCommand(interp, "WARN", SyslogWarn_cmd, (ClientData)0, NULL);
 
-    if ( Channel_Initialize(interp) == false ) {
-        syslog( LOG_ERR, "Channel_Initialize failed" );
-    }
-
     if ( Tcl_CallAppInitChain(interp) == false ) {
 	    // exit
     }
