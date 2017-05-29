@@ -14,6 +14,7 @@ OBJS += string_util.o
 OBJS += tcl_util.o
 OBJS += StringList.o
 OBJS += UUID.o
+OBJS += TCL_UUID.o
 OBJS += Channel.o
 OBJS += TCL_Channel.o
 OBJS += AppInit.o
@@ -27,6 +28,7 @@ OBJS += Service.o
 # OBJS += Kernel.o
 OBJS += SMBIOS.o
 # OBJS += util.o
+OBJS += xuid.o
 OBJS += traps.o
 OBJS += syslog_logger.o
 

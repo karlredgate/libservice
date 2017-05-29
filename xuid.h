@@ -21,43 +21,45 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/** \file UUID.h
- * \brief 
+/*
+ * UUID and GUID support structs
  */
 
-#ifndef _UUID_H_
-#define _UUID_H_
+#ifndef _XUID_H_
+#define _XUID_H_
 
 #include <stdint.h>
-#include <unistd.h>
-#include <tcl.h>
 
-/**
- * Without an arguement, create a new UUID.
- *
- * With an unsigned char* -- assume 16 bytes of raw uuid data to copy.
- * With a char* -- assume a string to be parsed.
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef uint8_t uuid_t[16];
+
+/*
+ * Examination of actual VHDx files show that the byte ordering
+ * of GUIDs is odd.  Instead of just being 16 bytes in
+ * normal UUID order, it takes the form of the structure listed
+ * in appendix A of the 1.0 spec.
  */
-class UUID {
-private:
-    uint8_t data[16];
-    char string[37];
-    void parse();
-    void format();
-    uint8_t nybble( int );
-public:
-    UUID( UUID& );
-    UUID();
-    UUID( uint8_t * );
-    UUID( char * );
-    bool set( uint8_t * );
-    bool set( char * );
-    inline char *to_s() { return string; }
-    inline uint8_t *raw() { return data; }
-    bool operator == ( UUID& );
-    bool operator != ( UUID& );
-};
+
+typedef struct {
+    uint32_t data1;
+    uint16_t data2;
+    uint16_t data3;
+    uint8_t  data4[8];
+} guid_t;
+
+int parse_uuid( char *, uint8_t * );
+int parse_guid( char *, guid_t * );
+int format_uuid( char *, uint8_t * );
+int format_guid( char *, guid_t * );
+int compare_guid( guid_t *, guid_t * );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 
-/* vim: set autoindent expandtab sw=4 : */
+/* vim: set autoindent expandtab sw=4 syntax=c: */
